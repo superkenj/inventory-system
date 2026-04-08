@@ -75,7 +75,8 @@
     "nsis": {
       "include": "build/installer.nsh",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "uninstallerIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": true
     }
   }
 }

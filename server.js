@@ -160,6 +160,37 @@ function seedInventoryReference(db) {
   persistDb(db);
 }
 
+/** SHA-256 hex of the old built-in default password (pre–auth-v2). Used only to detect and remove that seeded row. */
+const LEGACY_SEEDED_ADMIN_PASSWORD_HASH =
+  "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
+
+function migrateAuthPolicyV2(db) {
+  const row = dbAll(db, "SELECT setting_value FROM app_settings WHERE setting_key = ?", ["auth_policy_version"]);
+  if (row.length && row[0].setting_value === "2") {
+    return;
+  }
+
+  const admins = dbAll(
+    db,
+    "SELECT id, username, password_hash FROM users WHERE role = ?",
+    ["admin"]
+  );
+  if (
+    admins.length === 1 &&
+    admins[0].username === "admin" &&
+    admins[0].password_hash === LEGACY_SEEDED_ADMIN_PASSWORD_HASH
+  ) {
+    dbRun(db, "DELETE FROM users WHERE id = ?", [admins[0].id]);
+  }
+
+  dbRun(
+    db,
+    "INSERT OR REPLACE INTO app_settings (setting_key, setting_value) VALUES (?, ?)",
+    ["auth_policy_version", "2"]
+  );
+  persistDb(db);
+}
+
 function runUppercaseMigration(db) {
   dbRun(db, "UPDATE inventory SET item_name = UPPER(item_name), unit_of_measure = UPPER(unit_of_measure)");
   dbRun(
@@ -278,6 +309,8 @@ async function createApp() {
       setting_value TEXT NOT NULL
     )`
   );
+
+  migrateAuthPolicyV2(db);
 
   const seededVersion = dbAll(
     db,
