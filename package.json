@@ -1,0 +1,81 @@
+{
+  "name": "item-tracking-system",
+  "version": "1.0.0",
+  "description": "Local inventory and issuance tracker using SQLite",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "icons": "node scripts/convert-app-icon.js",
+    "fix-logo-alpha": "node scripts/restore-logo-transparency.mjs",
+    "prebuild": "npm run icons",
+    "preelectron:build": "npm run icons",
+    "electron:dev": "electron electron/main.js",
+    "electron": "electron electron/main.js",
+    "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder",
+    "electron:build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder"
+  },
+  "dependencies": {
+    "sql.js": "^1.13.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.4.8",
+    "electron-builder": "^25.1.8",
+    "rcedit": "^4.0.1",
+    "sharp": "^0.34.5",
+    "to-ico": "^1.1.5"
+  },
+  "build": {
+    "appId": "com.regis.inventory",
+    "productName": "REGIS",
+    "copyright": "Copyright © 2026",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": true,
+    "afterPack": "./scripts/after-pack-win-icon.js",
+    "icon": "public/assets/ccro-logo.png",
+    "electronLanguages": [
+      "en-US"
+    ],
+    "files": [
+      "**/*",
+      "!dist/**",
+      "!data/**",
+      "!build/**",
+      "!scripts/**",
+      "!node_modules/sql.js/.devcontainer/**",
+      "!node_modules/sql.js/CONTRIBUTING.md",
+      "!node_modules/sql.js/documentation_index.md",
+      "!node_modules/sql.js/logo.svg",
+      "!node_modules/sql.js/.eslintrc.js",
+      "!node_modules/sql.js/eslint.config.cjs",
+      "!node_modules/sql.js/dist/sql-asm.js",
+      "!node_modules/sql.js/dist/sql-asm-debug.js",
+      "!node_modules/sql.js/dist/sql-asm-memory-growth.js",
+      "!node_modules/sql.js/dist/worker.sql-asm.js",
+      "!node_modules/sql.js/dist/worker.sql-asm-debug.js",
+      "!node_modules/sql.js/dist/sql-wasm-debug.js",
+      "!node_modules/sql.js/dist/sql-wasm-debug.wasm",
+      "!node_modules/sql.js/dist/sql-wasm-browser.js",
+      "!node_modules/sql.js/dist/sql-wasm-browser-debug.js",
+      "!node_modules/sql.js/dist/sql-wasm-browser.wasm",
+      "!node_modules/sql.js/dist/sql-wasm-browser-debug.wasm",
+      "!node_modules/sql.js/dist/worker.sql-wasm.js",
+      "!node_modules/sql.js/dist/worker.sql-wasm-debug.js",
+      "!.git/**"
+    ],
+    "win": {
+      "icon": "public/assets/ccro-logo.png",
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "include": "build/installer.nsh",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
+  }
+}

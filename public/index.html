@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>REGIS - Registrar Inventory System</title>
+    <link rel="icon" href="/assets/ccro-logo.png" type="image/png" sizes="any" />
+    <link rel="apple-touch-icon" href="/assets/ccro-logo.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand-wrap">
+          <img class="brand-logo" src="/assets/ccro-logo.png" alt="City Civil Registrar logo" />
+          <div class="brand-text">
+            <strong>REGIS</strong>
+            <span>Registrar Inventory System</span>
+          </div>
+        </div>
+
+        <nav class="menu">
+          <button class="menu-item active" data-view="inventory">Inventory List</button>
+          <button class="menu-item" data-view="logs">Issuance Logs</button>
+          <button class="menu-item" data-view="add-item">Inventory Management</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <small id="auth-state">Not logged in</small>
+          <button id="logout-btn" class="ghost-btn hidden">Sign out</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section id="inventory-view" class="panel visible">
+          <div class="panel-header split">
+            <h1>Inventory List</h1>
+            <div class="inventory-tools">
+              <button type="button" id="print-preview-btn" class="secondary-btn">Print Preview</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Description / Item Name</th>
+                  <th class="col-unit-cost">Unit Cost</th>
+                  <th class="col-quantity">Quantity</th>
+                  <th class="col-uom">Unit of Measure</th>
+                  <th class="col-action">Action</th>
+                </tr>
+              </thead>
+              <tbody id="inventory-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="add-item-view" class="panel">
+          <div class="panel-header split">
+            <h1>Inventory Management</h1>
+            <div class="add-item-tools">
+              <input
+                id="add-item-search"
+                class="search-input hidden"
+                type="search"
+                placeholder="Search item..."
+              />
+              <button id="add-new-item-btn" class="primary-btn hidden">+ Add New Item</button>
+            </div>
+          </div>
+          <div id="admin-content" class="hidden">
+            <div class="table-wrap">
+              <table class="table-inventory-mgmt">
+                <thead>
+                  <tr>
+                    <th>Description / Item Name</th>
+                    <th class="col-unit-cost">Unit Cost</th>
+                    <th class="col-quantity">Quantity</th>
+                    <th class="col-uom">Unit of Measure</th>
+                    <th class="col-action">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="add-item-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="logs-view" class="panel">
+          <div class="panel-header split">
+            <h1>Issuance Logs<span id="logs-period-label"></span></h1>
+            <div class="inventory-tools">
+              <select id="logs-year-filter" class="compact-select">
+                <option value=""></option>
+              </select>
+              <select id="logs-month-filter" class="compact-select">
+                <option value=""></option>
+                <option value="0">January</option>
+                <option value="1">February</option>
+                <option value="2">March</option>
+                <option value="3">April</option>
+                <option value="4">May</option>
+                <option value="5">June</option>
+                <option value="6">July</option>
+                <option value="7">August</option>
+                <option value="8">September</option>
+                <option value="9">October</option>
+                <option value="10">November</option>
+                <option value="11">December</option>
+              </select>
+              <button type="button" id="print-preview-logs-btn" class="secondary-btn">Print Preview</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item Name</th>
+                  <th>Quantity</th>
+                  <th>Unit of Measure</th>
+                  <th>ID Number</th>
+                  <th>Name</th>
+                  <th>Date Issued</th>
+                </tr>
+              </thead>
+              <tbody id="logs-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay hidden">
+      <div id="modal-card" class="modal-card">
+        <div class="modal-head">
+          <h2 id="modal-title">Modal</h2>
+          <button id="modal-close" class="icon-btn">x</button>
+        </div>
+        <form id="modal-form" class="modal-form"></form>
+      </div>
+    </div>
+
+    <div id="dialog-modal-root" class="dialog-modal-root" aria-live="polite"></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
