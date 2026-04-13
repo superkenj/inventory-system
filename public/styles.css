@@ -435,7 +435,7 @@ td.col-action {
   background: #fff;
   border-radius: 12px;
   border: 1px solid var(--line);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .modal-card.modal-card-wide {
@@ -588,6 +588,76 @@ td.col-action {
 .modal-form select:focus {
   border-color: #8bc6b1;
   box-shadow: 0 0 0 2px #d8eee5;
+}
+
+.modal-form input.input-uppercase {
+  text-transform: uppercase;
+}
+
+.uom-autocomplete,
+.autocomplete-field {
+  position: relative;
+}
+
+.uom-autocomplete input,
+.autocomplete-field input {
+  padding-right: 34px;
+}
+
+.uom-toggle-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #1d2d2a;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.uom-toggle-btn:hover {
+  background: #f3f6f5;
+}
+
+.uom-options {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #cad8d3;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d2d2a;
+  z-index: 80;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.uom-option-btn {
+  width: 100%;
+  border: 0;
+  background: #fff;
+  color: #1d2d2a;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.uom-option-btn:hover {
+  background: #f3f6f5;
+}
+
+.uom-option-empty {
+  padding: 8px 10px;
+  color: #5b6c67;
 }
 
 .row {

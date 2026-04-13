@@ -106,6 +106,42 @@ function formatInventoryUom(value) {
   return escapeHtml(String(value));
 }
 
+/** Distinct non-empty unit_of_measure values from cached inventory, sorted A–Z. */
+function distinctInventoryUoms() {
+  const seen = new Set();
+  for (const row of inventoryCache) {
+    const u = row.unit_of_measure;
+    if (u == null || u === "") continue;
+    const t = String(u).trim();
+    if (t !== "") seen.add(t);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+
+function distinctLogValues(fieldName) {
+  const seen = new Set();
+  for (const row of logsCache) {
+    const value = row?.[fieldName];
+    if (value == null || value === "") continue;
+    const text = String(value).trim();
+    if (text !== "") seen.add(text);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+
+function nameSuggestionsForPersonId(personId) {
+  const key = String(personId || "").trim().toUpperCase();
+  if (!key) return [];
+  const seen = new Set();
+  for (const row of logsCache) {
+    const rowId = String(row?.person_id || "").trim().toUpperCase();
+    if (rowId !== key) continue;
+    const name = String(row?.person_name || "").trim();
+    if (name !== "") seen.add(name);
+  }
+  return [...seen].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+
 function availableStockNumber(row) {
   if (row.quantity === null || row.quantity === undefined || row.quantity === "") return NaN;
   const n = Number(row.quantity);
@@ -262,10 +298,153 @@ function openConfirmationModal(title, message, confirmLabel = "Confirm") {
   });
 }
 
+function bindUppercaseFields(container) {
+  if (!container) return;
+  container.querySelectorAll("input.input-uppercase").forEach((el) => {
+    el.addEventListener("input", () => {
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      const upper = el.value.toUpperCase();
+      if (el.value !== upper) {
+        el.value = upper;
+        if (typeof start === "number" && typeof end === "number") {
+          el.setSelectionRange(start, end);
+        }
+      }
+    });
+  });
+}
+
+function initInputSuggestions(container, { inputId, toggleId, listId, suggestions }) {
+  if (!container) {
+    return {
+      setSuggestions() {},
+      destroy() {}
+    };
+  }
+  const input = container.querySelector(`#${inputId}`);
+  const toggleBtn = container.querySelector(`#${toggleId}`);
+  const list = container.querySelector(`#${listId}`);
+  if (!input || !toggleBtn || !list) {
+    return {
+      setSuggestions() {},
+      destroy() {}
+    };
+  }
+  const fieldRoot = input.closest(".autocomplete-field, .uom-autocomplete") || container;
+
+  let allSuggestions = [...suggestions];
+  let open = false;
+  let suppressOpenOnce = false;
+
+  const renderList = (items) => {
+    if (items.length === 0) {
+      list.innerHTML = "";
+      return;
+    }
+    list.innerHTML = items
+      .map((item) => `<li><button type="button" class="uom-option-btn" data-uom="${escapeHtml(item)}">${escapeHtml(item)}</button></li>`)
+      .join("");
+  };
+
+  const closeList = () => {
+    open = false;
+    list.classList.add("hidden");
+    toggleBtn.setAttribute("aria-expanded", "false");
+  };
+
+  const openList = () => {
+    open = true;
+    list.classList.remove("hidden");
+    toggleBtn.setAttribute("aria-expanded", "true");
+  };
+
+  const applyFilter = () => {
+    const q = String(input.value || "").trim().toUpperCase();
+    const filtered = q === "" ? allSuggestions : allSuggestions.filter((u) => u.toUpperCase().includes(q));
+    renderList(filtered);
+    if (suppressOpenOnce) {
+      suppressOpenOnce = false;
+      closeList();
+      return;
+    }
+    if (filtered.length > 0) {
+      openList();
+    } else {
+      closeList();
+    }
+  };
+
+  const onInput = () => applyFilter();
+  const onToggle = () => {
+    if (open) {
+      closeList();
+    } else {
+      renderList(allSuggestions);
+      openList();
+      input.focus();
+    }
+  };
+  const onDocPointerDown = (e) => {
+    if (!fieldRoot.contains(e.target)) {
+      closeList();
+    }
+  };
+  const onListClick = (e) => {
+    const btn = e.target.closest("[data-uom]");
+    if (!btn) return;
+    input.value = btn.dataset.uom || "";
+    suppressOpenOnce = true;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    closeList();
+    input.blur();
+  };
+  const onInputFocus = () => {
+    applyFilter();
+  };
+
+  input.addEventListener("input", onInput);
+  input.addEventListener("focus", onInputFocus);
+  toggleBtn.addEventListener("click", onToggle);
+  list.addEventListener("click", onListClick);
+  document.addEventListener("pointerdown", onDocPointerDown);
+
+  renderList(allSuggestions);
+  closeList();
+
+  return {
+    setSuggestions(nextSuggestions) {
+      allSuggestions = [...nextSuggestions];
+      if (open || document.activeElement === input) {
+        applyFilter();
+      } else {
+        renderList(allSuggestions);
+      }
+    },
+    destroy() {
+      input.removeEventListener("input", onInput);
+      input.removeEventListener("focus", onInputFocus);
+      toggleBtn.removeEventListener("click", onToggle);
+      list.removeEventListener("click", onListClick);
+      document.removeEventListener("pointerdown", onDocPointerDown);
+    }
+  };
+}
+
+function initUomSuggestions(container, suggestions) {
+  return initInputSuggestions(container, {
+    inputId: "add-item-uom-input",
+    toggleId: "add-item-uom-toggle",
+    listId: "add-item-uom-list",
+    suggestions
+  });
+}
+
 function openModal(title, html, onSubmit) {
   bumpMainModalZ();
   modalTitle.textContent = title;
   modalForm.innerHTML = html;
+  bindUppercaseFields(modalForm);
   modalOverlay.classList.remove("hidden");
 
   modalForm.onsubmit = async (event) => {
@@ -616,7 +795,7 @@ function openEditItemModal(item) {
     `
       <div>
         <label>Description / Item Name</label>
-        <input name="itemName" value="${escapeHtml(item.item_name)}" required />
+        <input name="itemName" class="input-uppercase" value="${escapeHtml(item.item_name)}" required />
       </div>
       <div>
         <label>Unit Cost (PHP)</label>
@@ -634,7 +813,7 @@ function openEditItemModal(item) {
           method: "POST",
           body: JSON.stringify({
             itemId: item.id,
-            itemName: formData.get("itemName"),
+            itemName: String(formData.get("itemName") || "").trim().toUpperCase(),
             unitCost: Number(formData.get("unitCost"))
           })
         });
@@ -915,17 +1094,39 @@ inventoryBody.addEventListener("click", (e) => {
 
   const available = availableStockNumber(item);
   const availableLabel = formatInventoryQuantity(item.quantity) || String(available);
+  const personIdSuggestions = distinctLogValues("person_id");
+  const personNameSuggestions = distinctLogValues("person_name");
 
   openModal(
     `Check-Out: ${item.item_name}`,
     `
       <div>
         <label>ID Number</label>
-        <input name="personId" required />
+        <div class="autocomplete-field">
+          <input id="checkout-person-id" name="personId" class="input-uppercase" autocomplete="off" required />
+          <button
+            id="checkout-person-id-toggle"
+            class="uom-toggle-btn"
+            type="button"
+            aria-label="Show ID suggestions"
+            aria-expanded="false"
+          >▼</button>
+          <ul id="checkout-person-id-list" class="uom-options hidden" role="listbox"></ul>
+        </div>
       </div>
       <div>
         <label>Name</label>
-        <input name="personName" required />
+        <div class="autocomplete-field">
+          <input id="checkout-person-name" name="personName" class="input-uppercase" autocomplete="off" required />
+          <button
+            id="checkout-person-name-toggle"
+            class="uom-toggle-btn"
+            type="button"
+            aria-label="Show name suggestions"
+            aria-expanded="false"
+          >▼</button>
+          <ul id="checkout-person-name-list" class="uom-options hidden" role="listbox"></ul>
+        </div>
       </div>
       <div class="row">
         <div>
@@ -965,8 +1166,8 @@ inventoryBody.addEventListener("click", (e) => {
           method: "POST",
           body: JSON.stringify({
             itemId,
-            personId: formData.get("personId"),
-            personName: formData.get("personName"),
+            personId: String(formData.get("personId") || "").trim().toUpperCase(),
+            personName: String(formData.get("personName") || "").trim().toUpperCase(),
             quantity
           })
         });
@@ -977,6 +1178,48 @@ inventoryBody.addEventListener("click", (e) => {
       }
     }
   );
+
+  const personIdSuggestController = initInputSuggestions(modalForm, {
+    inputId: "checkout-person-id",
+    toggleId: "checkout-person-id-toggle",
+    listId: "checkout-person-id-list",
+    suggestions: personIdSuggestions
+  });
+  const personNameSuggestController = initInputSuggestions(modalForm, {
+    inputId: "checkout-person-name",
+    toggleId: "checkout-person-name-toggle",
+    listId: "checkout-person-name-list",
+    suggestions: personNameSuggestions
+  });
+  const personIdInput = document.getElementById("checkout-person-id");
+  const personNameInput = document.getElementById("checkout-person-name");
+  const syncPersonNameContext = () => {
+    if (!personIdInput || !personNameInput) return;
+    const matchedNames = nameSuggestionsForPersonId(personIdInput.value);
+    if (matchedNames.length > 0) {
+      personNameSuggestController.setSuggestions(matchedNames);
+      const currentName = String(personNameInput.value || "").trim().toUpperCase();
+      const hasExact = matchedNames.some((name) => name.toUpperCase() === currentName);
+      if (!currentName || !hasExact) {
+        personNameInput.value = matchedNames[0];
+      }
+      return;
+    }
+    personNameSuggestController.setSuggestions(personNameSuggestions);
+  };
+  if (personIdInput) {
+    personIdInput.addEventListener("input", syncPersonNameContext);
+    personIdInput.addEventListener("blur", syncPersonNameContext);
+  }
+  syncPersonNameContext();
+  onModalClosed = () => {
+    if (personIdInput) {
+      personIdInput.removeEventListener("input", syncPersonNameContext);
+      personIdInput.removeEventListener("blur", syncPersonNameContext);
+    }
+    personIdSuggestController.destroy();
+    personNameSuggestController.destroy();
+  };
 
   const qtyInput = document.getElementById("checkout-quantity");
   const qtyHint = document.getElementById("checkout-qty-hint");
@@ -1169,12 +1412,13 @@ addItemBody.addEventListener("click", (e) => {
 
 addNewItemBtn.addEventListener("click", () => {
   if (!isAdmin) return;
+  const uomSuggestions = distinctInventoryUoms();
   openModal(
     "Add New Item",
     `
       <div>
         <label>Description / Item Name</label>
-        <input name="itemName" required />
+        <input name="itemName" class="input-uppercase" required />
       </div>
       <div class="row">
         <div>
@@ -1188,7 +1432,23 @@ addNewItemBtn.addEventListener("click", () => {
       </div>
       <div>
         <label>Unit of Measure</label>
-        <input name="unitOfMeasure" required />
+        <div class="uom-autocomplete">
+          <input
+            id="add-item-uom-input"
+            name="unitOfMeasure"
+            class="input-uppercase"
+            autocomplete="off"
+            required
+          />
+          <button
+            id="add-item-uom-toggle"
+            class="uom-toggle-btn"
+            type="button"
+            aria-label="Show unit suggestions"
+            aria-expanded="false"
+          >▼</button>
+          <ul id="add-item-uom-list" class="uom-options hidden" role="listbox"></ul>
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="cancel-btn">Cancel</button>
@@ -1200,10 +1460,10 @@ addNewItemBtn.addEventListener("click", () => {
         await request("/api/inventory/new-item", {
           method: "POST",
           body: JSON.stringify({
-            itemName: formData.get("itemName"),
+            itemName: String(formData.get("itemName") || "").trim().toUpperCase(),
             unitCost: Number(formData.get("unitCost")),
             quantity: Number(formData.get("quantity")),
-            unitOfMeasure: formData.get("unitOfMeasure")
+            unitOfMeasure: String(formData.get("unitOfMeasure") || "").trim().toUpperCase()
           })
         });
         closeModal();
@@ -1214,6 +1474,10 @@ addNewItemBtn.addEventListener("click", () => {
     }
   );
 
+  const uomSuggestController = initUomSuggestions(modalForm, uomSuggestions);
+  onModalClosed = () => {
+    uomSuggestController.destroy();
+  };
   document.getElementById("cancel-btn").addEventListener("click", closeModal);
 });
 
