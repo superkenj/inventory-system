@@ -26,7 +26,10 @@ const printPreviewBtn = document.getElementById("print-preview-btn");
 const printPreviewLogsBtn = document.getElementById("print-preview-logs-btn");
 const dialogModalRoot = document.getElementById("dialog-modal-root");
 
-let dialogZSeq = 1000;
+/** Main form modal (below). Kept low so alert/confirm layers always win. */
+let mainModalZ = 100;
+/** Stacked alert/confirm overlays (above #modal-overlay). */
+let dialogZSeq = 50000;
 const openDialogOverlays = [];
 
 let isAdmin = false;
@@ -128,7 +131,14 @@ function showView(view) {
 }
 
 function bumpMainModalZ() {
-  modalOverlay.style.zIndex = String(++dialogZSeq);
+  modalOverlay.style.zIndex = String(++mainModalZ);
+}
+
+/** Ensures stacked dialogs are always above #modal-overlay and each new one is topmost. */
+function nextDialogLayerZ() {
+  const modalZ = Number.parseInt(modalOverlay.style.zIndex, 10) || 0;
+  dialogZSeq = Math.max(dialogZSeq, modalZ, 50000);
+  return String(++dialogZSeq);
 }
 
 function bindTopDialogEscape(overlay, onEscape) {
@@ -150,11 +160,12 @@ function showAlertModal(message, title = "Notice") {
     }
     const overlay = document.createElement("div");
     overlay.className = "dialog-modal-overlay";
-    overlay.style.zIndex = String(++dialogZSeq);
+    const layerZ = nextDialogLayerZ();
+    overlay.style.zIndex = layerZ;
     overlay.setAttribute("role", "alertdialog");
     overlay.setAttribute("aria-modal", "true");
 
-    const titleId = `dialog-alert-title-${dialogZSeq}`;
+    const titleId = `dialog-alert-title-${layerZ}`;
     overlay.innerHTML = `
       <div class="modal-card">
         <div class="modal-head">
@@ -201,11 +212,12 @@ function openConfirmationModal(title, message, confirmLabel = "Confirm") {
     }
     const overlay = document.createElement("div");
     overlay.className = "dialog-modal-overlay";
-    overlay.style.zIndex = String(++dialogZSeq);
+    const layerZ = nextDialogLayerZ();
+    overlay.style.zIndex = layerZ;
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
 
-    const titleId = `dialog-confirm-title-${dialogZSeq}`;
+    const titleId = `dialog-confirm-title-${layerZ}`;
     overlay.innerHTML = `
       <div class="modal-card">
         <div class="modal-head">
@@ -273,39 +285,6 @@ function closeModal() {
   modalOverlay.classList.add("hidden");
   modalForm.innerHTML = "";
   modalForm.onsubmit = null;
-}
-
-function openConfirmationModal(title, message, confirmLabel = "Confirm") {
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = (value) => {
-      if (settled) return;
-      settled = true;
-      onModalClosed = null;
-      resolve(value);
-    };
-
-    onModalClosed = () => settle(false);
-    openModal(
-      title,
-      `
-      <p>${escapeHtml(message)}</p>
-      <div class="modal-actions">
-        <button type="button" class="ghost-btn" id="cancel-btn">Cancel</button>
-        <button type="submit" class="primary-btn">${escapeHtml(confirmLabel)}</button>
-      </div>
-    `,
-      async () => {
-        settle(true);
-        closeModal();
-      }
-    );
-
-    document.getElementById("cancel-btn").addEventListener("click", () => {
-      settle(false);
-      closeModal();
-    });
-  });
 }
 
 async function request(url, options = {}) {

@@ -1,5 +1,10 @@
 ; NSIS hooks for electron-builder — confirm before install; confirm before uninstall (assisted installer only).
 
+!macro customHeader
+  ; Use REGIS for %LOCALAPPDATA%\Programs\... instead of package.json "name".
+  !define /redef APP_FILENAME "REGIS"
+!macroend
+
 !macro customInit
   MessageBox MB_OKCANCEL|MB_ICONQUESTION "Do you want to install REGIS - Registrar Inventory System on this computer?" IDOK +2
   Quit

@@ -1,5 +1,5 @@
 {
-  "name": "item-tracking-system",
+  "name": "REGIS",
   "version": "1.0.0",
   "description": "Local inventory and issuance tracker using SQLite",
   "main": "electron/main.js",
