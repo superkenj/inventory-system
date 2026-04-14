@@ -106,6 +106,42 @@ body {
   gap: 10px;
 }
 
+.sidebar-auth-label {
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+}
+
+.modal-form .password-field-wrap {
+  position: relative;
+  display: block;
+}
+
+.modal-form .password-field-wrap > input {
+  width: 100%;
+  padding-right: 4.5rem;
+  box-sizing: border-box;
+}
+
+.modal-form .password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: #5b6c67;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.modal-form .password-toggle-btn:hover {
+  background: #eef3f2;
+  color: #1d2d2a;
+}
+
 .ghost-btn {
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: #f3fffc;

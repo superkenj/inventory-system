@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>REGIS - Registrar Inventory System</title>
+    <title>REGIS v1.0.1 - Registrar Inventory System</title>
     <link rel="icon" href="/assets/ccro-logo.png" type="image/png" sizes="any" />
     <link rel="apple-touch-icon" href="/assets/ccro-logo.png" />
     <link rel="stylesheet" href="/styles.css" />
@@ -26,7 +26,8 @@
         </nav>
 
         <div class="sidebar-footer">
-          <small id="auth-state">Not logged in</small>
+          <small id="auth-state" class="sidebar-auth-label">Not logged in</small>
+          <button type="button" id="change-password-btn" class="ghost-btn hidden">Change password</button>
           <button id="logout-btn" class="ghost-btn hidden">Sign out</button>
         </div>
       </aside>

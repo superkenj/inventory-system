@@ -6,14 +6,14 @@
 !macroend
 
 !macro customInit
-  MessageBox MB_OKCANCEL|MB_ICONQUESTION "Do you want to install REGIS - Registrar Inventory System on this computer?" IDOK +2
+  MessageBox MB_OKCANCEL|MB_ICONQUESTION "Do you want to install REGIS v1.0.1 - Registrar Inventory System on this computer?" IDOK +2
   Quit
 !macroend
 
 ; One-click uninstall already shows $(areYouSureToUninstall) in un.onInit. This adds an explicit prompt for assisted (non–one-click) uninstallers only.
 !macro customUnInit
   !ifndef ONE_CLICK
-    MessageBox MB_OKCANCEL|MB_ICONQUESTION "Are you sure you want to uninstall REGIS - Registrar Inventory System?$\r$\n$\r$\nThis will remove the application from your computer." IDOK +2
+    MessageBox MB_OKCANCEL|MB_ICONQUESTION "Are you sure you want to uninstall REGIS v1.0.1 - Registrar Inventory System?$\r$\n$\r$\nThis will remove the application from your computer." IDOK +2
     Quit
   !endif
 !macroend

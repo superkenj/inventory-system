@@ -15,6 +15,7 @@ const logsYearFilter = document.getElementById("logs-year-filter");
 const logsPeriodLabel = document.getElementById("logs-period-label");
 const adminContent = document.getElementById("admin-content");
 const authState = document.getElementById("auth-state");
+const changePasswordBtn = document.getElementById("change-password-btn");
 const logoutBtn = document.getElementById("logout-btn");
 
 const modalOverlay = document.getElementById("modal-overlay");
@@ -295,6 +296,30 @@ function openConfirmationModal(title, message, confirmLabel = "Confirm") {
     overlay.querySelector(".js-dialog-confirm-cancel").addEventListener("click", () => finish(false));
     overlay.querySelector(".js-dialog-confirm-yes").addEventListener("click", () => finish(true));
     overlay.querySelector(".js-dialog-confirm-x").addEventListener("click", () => finish(false));
+  });
+}
+
+function bindPasswordVisibilityToggles(container) {
+  if (!container) return;
+  container.querySelectorAll(".js-password-toggle").forEach((btn) => {
+    const targetId = btn.getAttribute("aria-controls");
+    if (!targetId) return;
+    const input = () => document.getElementById(targetId);
+    const sync = () => {
+      const el = input();
+      if (!el) return;
+      const isHidden = el.type === "password";
+      btn.setAttribute("aria-pressed", isHidden ? "false" : "true");
+      btn.setAttribute("aria-label", isHidden ? "Show password" : "Hide password");
+      btn.textContent = isHidden ? "Show" : "Hide";
+    };
+    btn.addEventListener("click", () => {
+      const el = input();
+      if (!el) return;
+      el.type = el.type === "password" ? "text" : "password";
+      sync();
+    });
+    sync();
   });
 }
 
@@ -801,7 +826,16 @@ function openEditItemModal(item) {
         <label>Unit Cost (PHP)</label>
         <input name="unitCost" type="number" min="0" step="0.01" value="${Number(item.unit_cost)}" required />
       </div>
-      <p class="muted">Quantity and unit of measure are updated using Add Stock or Adjust.</p>
+      <div>
+        <label>Unit of Measure</label>
+        <input
+          name="unitOfMeasure"
+          class="input-uppercase"
+          value="${escapeHtml(item.unit_of_measure || "")}"
+          required
+        />
+      </div>
+      <p class="muted">Quantity is updated using Add or Deduct Stock.</p>
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="cancel-btn">Cancel</button>
         <button type="submit" class="primary-btn">Save Changes</button>
@@ -814,7 +848,8 @@ function openEditItemModal(item) {
           body: JSON.stringify({
             itemId: item.id,
             itemName: String(formData.get("itemName") || "").trim().toUpperCase(),
-            unitCost: Number(formData.get("unitCost"))
+            unitCost: Number(formData.get("unitCost")),
+            unitOfMeasure: String(formData.get("unitOfMeasure") || "").trim().toUpperCase()
           })
         });
         closeModal();
@@ -919,12 +954,15 @@ async function refreshLogs() {
 
 function setAdminUiState() {
   if (isAdmin) {
-    authState.textContent = "Logged in as admin";
+    authState.classList.add("hidden");
+    if (changePasswordBtn) changePasswordBtn.classList.remove("hidden");
     adminContent.classList.remove("hidden");
     addNewItemBtn.classList.remove("hidden");
     addItemSearchInput.classList.remove("hidden");
     logoutBtn.classList.remove("hidden");
   } else if (needsSetup) {
+    authState.classList.remove("hidden");
+    if (changePasswordBtn) changePasswordBtn.classList.add("hidden");
     authState.textContent = "Administrator not configured";
     adminContent.classList.add("hidden");
     addNewItemBtn.classList.add("hidden");
@@ -933,6 +971,8 @@ function setAdminUiState() {
     addItemSearchInput.value = "";
     logoutBtn.classList.add("hidden");
   } else {
+    authState.classList.remove("hidden");
+    if (changePasswordBtn) changePasswordBtn.classList.add("hidden");
     authState.textContent = "Not logged in";
     adminContent.classList.add("hidden");
     addNewItemBtn.classList.add("hidden");
@@ -1021,8 +1061,22 @@ function openAdminLoginModal(onSuccess) {
         <input name="username" required />
       </div>
       <div>
-        <label>Password</label>
-        <input name="password" type="password" required />
+        <label for="admin-login-password">Password</label>
+        <div class="password-field-wrap">
+          <input
+            id="admin-login-password"
+            name="password"
+            type="password"
+            required
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="password-toggle-btn js-password-toggle"
+            aria-controls="admin-login-password"
+            aria-pressed="false"
+          >Show</button>
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="cancel-btn">Cancel</button>
@@ -1048,7 +1102,111 @@ function openAdminLoginModal(onSuccess) {
     }
   );
 
+  bindPasswordVisibilityToggles(modalForm);
   document.getElementById("cancel-btn").addEventListener("click", closeModal);
+}
+
+function openChangePasswordModal() {
+  if (!isAdmin) return;
+  openModal(
+    "Change password",
+    `
+      <p class="muted">Enter your current password, then choose a new one.</p>
+      <div>
+        <label for="cp-current">Current password</label>
+        <div class="password-field-wrap">
+          <input
+            id="cp-current"
+            name="currentPassword"
+            type="password"
+            required
+            minlength="8"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="password-toggle-btn js-password-toggle"
+            aria-controls="cp-current"
+            aria-pressed="false"
+          >Show</button>
+        </div>
+      </div>
+      <div>
+        <label for="cp-new">New password</label>
+        <div class="password-field-wrap">
+          <input
+            id="cp-new"
+            name="newPassword"
+            type="password"
+            required
+            minlength="8"
+            autocomplete="new-password"
+          />
+          <button
+            type="button"
+            class="password-toggle-btn js-password-toggle"
+            aria-controls="cp-new"
+            aria-pressed="false"
+          >Show</button>
+        </div>
+      </div>
+      <div>
+        <label for="cp-confirm">Confirm new password</label>
+        <div class="password-field-wrap">
+          <input
+            id="cp-confirm"
+            name="newPasswordConfirm"
+            type="password"
+            required
+            minlength="8"
+            autocomplete="new-password"
+          />
+          <button
+            type="button"
+            class="password-toggle-btn js-password-toggle"
+            aria-controls="cp-confirm"
+            aria-pressed="false"
+          >Show</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="cancel-btn">Cancel</button>
+        <button type="submit" class="primary-btn">Update password</button>
+      </div>
+    `,
+    async (formData) => {
+      try {
+        await request("/api/change-password", {
+          method: "POST",
+          body: JSON.stringify({
+            currentPassword: String(formData.get("currentPassword") || ""),
+            newPassword: String(formData.get("newPassword") || ""),
+            newPasswordConfirm: String(formData.get("newPasswordConfirm") || "")
+          })
+        });
+        closeModal();
+        if (currentView === "add-item") {
+          showView("inventory");
+        }
+        try {
+          await loadSession();
+        } catch (err) {
+          needsSetup = false;
+          setAdminUiState();
+        }
+        await showAlertModal("Password changed. Sign in again to use Inventory Management.");
+      } catch (err) {
+        await showAlertModal(err.message);
+      }
+    }
+  );
+
+  bindPasswordVisibilityToggles(modalForm);
+  document.getElementById("cancel-btn").addEventListener("click", closeModal);
+}
+
+if (changePasswordBtn) {
+  changePasswordBtn.addEventListener("click", () => openChangePasswordModal());
 }
 
 menuItems.forEach((item) => {

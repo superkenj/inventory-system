@@ -46,9 +46,11 @@ function getWindowNativeIcon() {
 
 function createWindow() {
   const ROOT = getRoot();
+  const windowTitle = `${app.getName()} v${app.getVersion()} - Registrar Inventory System`;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    title: windowTitle,
     show: false,
     icon: getWindowNativeIcon(),
     webPreferences: {

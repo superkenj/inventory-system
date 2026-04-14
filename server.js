@@ -209,6 +209,66 @@ function runUppercaseMigration(db) {
   persistDb(db);
 }
 
+/** SQLite double-quoted identifier for dynamic column names in migrations. */
+function sqlQuoteIdent(name) {
+  return `"${String(name).replace(/"/g, '""')}"`;
+}
+
+/**
+ * Older app.db files may have an `inventory` table created before `item_name` existed.
+ * `CREATE TABLE IF NOT EXISTS` does not upgrade the schema, which breaks seeding and APIs.
+ */
+function migrateInventoryCanonicalSchema(db) {
+  const cols = dbAll(db, "PRAGMA table_info(inventory)");
+  if (!cols.length) return;
+  if (cols.some((c) => c.name === "item_name")) return;
+
+  const byLower = new Map(cols.map((c) => [String(c.name).toLowerCase(), c.name]));
+  const pick = (candidates) => {
+    for (const cand of candidates) {
+      const hit = byLower.get(cand.toLowerCase());
+      if (hit) return hit;
+    }
+    return null;
+  };
+
+  const itemCol = pick(["item_name", "itemName", "name", "item", "description", "item_description"]);
+  const costCol = pick(["unit_cost", "unitCost", "cost"]);
+  const qtyCol = pick(["quantity", "qty", "amount", "stock"]);
+  const uomCol = pick(["unit_of_measure", "unitOfMeasure", "uom", "measure"]);
+
+  dbRun(
+    db,
+    `CREATE TABLE inventory_canon_mig (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_name TEXT NOT NULL,
+      unit_cost REAL NOT NULL,
+      quantity REAL,
+      unit_of_measure TEXT
+    )`
+  );
+
+  if (itemCol && costCol) {
+    const qtyExpr = qtyCol ? sqlQuoteIdent(qtyCol) : "NULL";
+    const uomExpr = uomCol ? sqlQuoteIdent(uomCol) : "NULL";
+    dbRun(
+      db,
+      `INSERT INTO inventory_canon_mig (id, item_name, unit_cost, quantity, unit_of_measure)
+       SELECT id, ${sqlQuoteIdent(itemCol)}, ${sqlQuoteIdent(costCol)}, ${qtyExpr}, ${uomExpr} FROM inventory`
+    );
+  } else {
+    dbRun(
+      db,
+      `INSERT INTO inventory_canon_mig (id, item_name, unit_cost, quantity, unit_of_measure)
+       SELECT id, 'UNKNOWN ITEM', 0, NULL, NULL FROM inventory`
+    );
+  }
+
+  dbRun(db, "DROP TABLE inventory");
+  dbRun(db, "ALTER TABLE inventory_canon_mig RENAME TO inventory");
+  persistDb(db);
+}
+
 function migrateInventoryNullableQtyUom(db) {
   const cols = dbAll(db, "PRAGMA table_info(inventory)");
   if (!cols.length) return;
@@ -270,6 +330,7 @@ async function createApp() {
     )`
   );
 
+  migrateInventoryCanonicalSchema(db);
   migrateInventoryNullableQtyUom(db);
 
   dbRun(
@@ -432,6 +493,46 @@ async function createApp() {
         return res.end(JSON.stringify({ ok: true }));
       }
 
+      if (route === "POST /api/change-password") {
+        const admin = requireAdmin(req, res);
+        if (!admin) return;
+
+        const body = await readBody(req);
+        const currentPassword = String(body.currentPassword || "");
+        const newPassword = String(body.newPassword || "");
+        const newPasswordConfirm = String(body.newPasswordConfirm || "");
+
+        if (newPassword.length < 8) {
+          return json(res, 400, { error: "Password must be at least 8 characters" });
+        }
+        if (newPassword !== newPasswordConfirm) {
+          return json(res, 400, { error: "Passwords do not match" });
+        }
+
+        const userRows = dbAll(db, "SELECT id, password_hash FROM users WHERE id = ?", [admin.id]);
+        if (userRows.length === 0) {
+          return json(res, 404, { error: "User not found" });
+        }
+        if (userRows[0].password_hash !== hashPassword(currentPassword)) {
+          return json(res, 400, { error: "Current password is incorrect" });
+        }
+
+        dbRun(db, "UPDATE users SET password_hash = ? WHERE id = ?", [hashPassword(newPassword), admin.id]);
+        persistDb(db);
+
+        const tokensToRemove = [];
+        for (const [token, sess] of sessions.entries()) {
+          if (sess && Number(sess.id) === Number(admin.id)) tokensToRemove.push(token);
+        }
+        for (const token of tokensToRemove) sessions.delete(token);
+
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Set-Cookie": "sessionToken=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict"
+        });
+        return res.end(JSON.stringify({ ok: true }));
+      }
+
       if (route === "GET /api/inventory") {
         const rows = dbAll(
           db,
@@ -471,8 +572,15 @@ async function createApp() {
         const itemId = Number(body.itemId);
         const itemName = toUpperText(body.itemName);
         const unitCost = Number(body.unitCost);
+        const unitOfMeasure = toUpperText(body.unitOfMeasure);
 
-        if (Number.isNaN(itemId) || !itemName || Number.isNaN(unitCost) || unitCost < 0) {
+        if (
+          Number.isNaN(itemId) ||
+          !itemName ||
+          Number.isNaN(unitCost) ||
+          unitCost < 0 ||
+          !unitOfMeasure
+        ) {
           return json(res, 400, { error: "Invalid item update data" });
         }
 
@@ -481,9 +589,10 @@ async function createApp() {
           return json(res, 404, { error: "Item not found" });
         }
 
-        dbRun(db, "UPDATE inventory SET item_name = ?, unit_cost = ? WHERE id = ?", [
+        dbRun(db, "UPDATE inventory SET item_name = ?, unit_cost = ?, unit_of_measure = ? WHERE id = ?", [
           itemName,
           unitCost,
+          unitOfMeasure,
           itemId
         ]);
         persistDb(db);
